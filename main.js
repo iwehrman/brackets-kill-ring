@@ -23,43 +23,41 @@
 
 
 /*jslint vars: true, plusplus: true, devel: true, nomen: true, indent: 4, maxerr: 50 */
-/*global define, brackets, $, CodeMirror */
+/*global define, brackets */
 
 define(function (require, exports, module) {
     "use strict";
-	
-    var EditorManager       = brackets.getModule("editor/EditorManager"),
-        CommandManager      = brackets.getModule("command/CommandManager"),
-		Menus               = brackets.getModule("command/Menus"),
-        AppInit             = brackets.getModule("utils/AppInit");
-	
 
-	function KillRing() {
-		this.ring = [];
+    var EditorManager           = brackets.getModule("editor/EditorManager"),
+        CommandManager          = brackets.getModule("command/CommandManager"),
+        Menus                   = brackets.getModule("command/Menus"),
+        AppInit                 = brackets.getModule("utils/AppInit");
+
+
+    function KillRing() {
+        this.ring = [];
         this.index = null;
         this.MAX_BUFFER_LENGTH = 100;
-        
         this.last_yank_begin = null;
         this.last_yank_end = null;
-        
-	}
-	
-	KillRing.prototype.push = function (text) {
+    }
+
+    KillRing.prototype.push = function (text) {
         if (this.ring.length > this.MAX_BUFFER_LENGTH) {
             this.ring.shift();
         }
         
         this.ring.push(text);
         this.index = this.ring.length - 1;
-	};
-	
-	KillRing.prototype.peek = function () {
+    };
+
+    KillRing.prototype.peek = function () {
         if (this.ring.length > 0) {
             return this.ring[this.index];
         } else {
             return null;
         }
-	};
+    };
     
     KillRing.prototype.rotate = function () {
         if (this.index !== null) {
@@ -74,7 +72,7 @@ define(function (require, exports, module) {
         }
     };
 
-	function _getKillRing(editor) {
+    function _getKillRing(editor) {
         if (editor) {
             if (!(editor.killRing)) {
                 editor.killRing = new KillRing();
@@ -83,9 +81,9 @@ define(function (require, exports, module) {
         } else {
             return null;
         }
-	}
-	
-	function _kill(editor) {
+    }
+
+    function _kill(editor) {
         editor = editor || EditorManager.getFocusedEditor();
         var killRing = _getKillRing(editor);
         
@@ -114,9 +112,9 @@ define(function (require, exports, module) {
             killRing.last_yank_begin = null;
             killRing.last_yank_end = null;
         }
-	}
-	
-	function _yank(editor, again) {
+    }
+
+    function _yank(editor, again) {
         editor = editor || EditorManager.getFocusedEditor();
         var killRing = _getKillRing(editor);
         
@@ -127,7 +125,7 @@ define(function (require, exports, module) {
                 var cursor = editor.getCursorPos(false);
                 var doc = editor.document;
                 
-                // if there was a previous yank and we're yanking again, replace that text
+                // if we're yanking again, replace the last yanked text
                 if (again) {
                     doc.replaceRange(text, killRing.last_yank_begin, killRing.last_yank_end);
                 } else { // otherwise yank at cursor
@@ -141,7 +139,7 @@ define(function (require, exports, module) {
             }
         }
         
-	}
+    }
     
     function _yank_pop(editor) {
         editor = editor || EditorManager.getFocusedEditor();
@@ -160,17 +158,16 @@ define(function (require, exports, module) {
 
     // load everything when brackets is done loading
     AppInit.appReady(function () {
-
-		var CMD_KILL = "Kill";
-		var CMD_YANK = "Yank";
-        var CMD_YANK_AGAIN = "Yank Again";
-		
-		var EDIT_KILL = "edit.kill";
-		var EDIT_YANK = "edit.yank";
-		var EDIT_YANK_AGAIN = "edit.yankAgain";
+        var EDIT_KILL = "edit.kill";
+        var EDIT_YANK = "edit.yank";
+        var EDIT_YANK_AGAIN = "edit.yankAgain";
         
-		CommandManager.register(CMD_KILL, EDIT_KILL, _kill);
-		CommandManager.register(CMD_YANK, EDIT_YANK, _yank);
+        var CMD_KILL = "Kill";
+        var CMD_YANK = "Yank";
+        var CMD_YANK_AGAIN = "Yank Again";
+
+        CommandManager.register(CMD_KILL, EDIT_KILL, _kill);
+        CommandManager.register(CMD_YANK, EDIT_YANK, _yank);
         CommandManager.register(CMD_YANK_AGAIN, EDIT_YANK_AGAIN, _yank_pop);
         
         function controlKey(char) {
@@ -190,5 +187,5 @@ define(function (require, exports, module) {
         menu.addMenuItem(EDIT_YANK_AGAIN, metaKey('Y'));
 
     });
-					 
+
 });
