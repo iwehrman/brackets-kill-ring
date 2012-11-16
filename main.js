@@ -95,7 +95,7 @@ define(function (require, exports, module) {
         
         // if line is empty, kill the next linebreak instead
         if (text === "") {
-            endRange = {line : cursor.line + 1, ch : 0};
+            endRange = {line : startRange.line + 1, ch : 0};
             text = doc.getRange(startRange, endRange);
         }
                     
