@@ -88,16 +88,16 @@ define(function (require, exports, module) {
             var line = doc.getLine(cursor.line);
             
             startRange = {line : cursor.line, ch: cursor.ch};
-            
-            // if line is empty, kill the next linebreak instead
-            if (line === "") {
-                endRange = {line : cursor.line + 1, ch : 0};
-            } else {
-                endRange = {line : cursor.line, ch : line.length};
-            }
+            endRange = {line : cursor.line, ch : line.length};
         }
         
         text = doc.getRange(startRange, endRange);
+        
+        // if line is empty, kill the next linebreak instead
+        if (text === "") {
+            endRange = {line : cursor.line + 1, ch : 0};
+            text = doc.getRange(startRange, endRange);
+        }
                     
         if (text !== null && text.length > 0) {
             // if the cursor hasn't moved between kills, concatenate kills
