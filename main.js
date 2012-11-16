@@ -103,17 +103,17 @@ define(function (require, exports, module) {
                 var line = doc.getLine(cursor.line);
                 
                 startRange = {line : cursor.line, ch: cursor.ch};
-                endRange = {line : cursor.line, ch : line.length};
+                
+                // if line is empty, kill the next linebreak instead
+                if (line === "") {
+                    endRange = {line : cursor.line + 1, ch : 0}; 
+                } else {
+                    endRange = {line : cursor.line, ch : line.length};    
+                }
             }
             
             text = doc.getRange(startRange, endRange);
-            
-            // if try we kill an "empty" line, kill the next linebreak if it exists
-            if (text === "") {
-                endRange = {line : endRange.line + 1, ch : 0};
-                text = doc.getRange(startRange, endRange);
-            }
-            
+                        
             if (text !== null && text.length > 0) {
                 // if the cursor hasn't moved between kills, concatenate kills
                 if (killRing.last_kill_begin !== null &&
