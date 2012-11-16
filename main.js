@@ -38,6 +38,7 @@ define(function (require, exports, module) {
         this.ring = [];
         this.index = null;
         this.MAX_BUFFER_LENGTH = 100;
+        this.last_kill_begin = null;
         this.last_yank_begin = null;
         this.last_yank_end = null;
     }
@@ -49,6 +50,10 @@ define(function (require, exports, module) {
         
         this.ring.push(text);
         this.index = this.ring.length - 1;
+    };
+    
+    KillRing.prototype.concat = function (text) {
+        this.ring[this.index] = this.ring[this.index] + text;
     };
 
     KillRing.prototype.peek = function () {
@@ -66,9 +71,6 @@ define(function (require, exports, module) {
             } else {
                 this.index = this.ring.length - 1;
             }
-            return this.index;
-        } else {
-            return null;
         }
     };
 
@@ -99,14 +101,34 @@ define(function (require, exports, module) {
             } else {
                 var cursor = editor.getCursorPos(false);
                 var line = doc.getLine(cursor.line);
-
+                
                 startRange = {line : cursor.line, ch: cursor.ch};
                 endRange = {line : cursor.line, ch : line.length};
             }
             
             text = doc.getRange(startRange, endRange);
-            killRing.push(text);
-            doc.replaceRange("", startRange, endRange);
+            
+            // if try we kill an "empty" line, kill the next linebreak if it exists
+            if (text === "") {
+                endRange = {line : endRange.line + 1, ch : 0};
+                text = doc.getRange(startRange, endRange);
+            }
+            
+            if (text !== null && text.length > 0) {
+                // if the cursor hasn't moved between kills, concatenate kills
+                if (killRing.last_kill_begin !== null &&
+                        killRing.last_kill_begin.line === startRange.line &&
+                        killRing.last_kill_begin.ch === startRange.ch) {
+                    killRing.concat(text);
+                } else {
+                    killRing.push(text);
+                }
+                
+                doc.replaceRange("", startRange, endRange);
+            }
+            
+            // last command was a kill, so set last kill position 
+            killRing.last_kill_begin = startRange;
             
             // last command was not a yank, so reset yank position
             killRing.last_yank_begin = null;
@@ -132,6 +154,9 @@ define(function (require, exports, module) {
                     killRing.last_yank_begin = { line: cursor.line, ch: cursor.ch};
                     doc.replaceRange(text, cursor);
                 }
+                
+                // last command was not a kill, so reset last kill position
+                killRing.last_kill_begin = null;
                 
                 // update last yank position
                 cursor = editor.getCursorPos(false);
@@ -185,7 +210,6 @@ define(function (require, exports, module) {
         menu.addMenuItem(EDIT_KILL, controlKey('K'));
         menu.addMenuItem(EDIT_YANK, controlKey('Y'));
         menu.addMenuItem(EDIT_YANK_AGAIN, metaKey('Y'));
-
     });
 
 });
