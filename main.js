@@ -33,151 +33,129 @@ define(function (require, exports, module) {
         Menus                   = brackets.getModule("command/Menus"),
         AppInit                 = brackets.getModule("utils/AppInit");
 
+    var MAX_BUFFER_LENGTH = 100;
+    
+    var ring = [],
+        index = null,
+        last_kill_begin = null,
+        last_yank_begin = null,
+        last_yank_end = null;
 
-    function KillRing() {
-        this.ring = [];
-        this.index = null;
-        this.MAX_BUFFER_LENGTH = 100;
-        this.last_kill_begin = null;
-        this.last_yank_begin = null;
-        this.last_yank_end = null;
-    }
-
-    KillRing.prototype.push = function (text) {
-        if (this.ring.length > this.MAX_BUFFER_LENGTH) {
-            this.ring.shift();
+    function push(text) {
+        if (ring.length > MAX_BUFFER_LENGTH) {
+            ring.shift();
         }
         
-        this.ring.push(text);
-        this.index = this.ring.length - 1;
-    };
+        ring.push(text);
+        index = ring.length - 1;
+    }
     
-    KillRing.prototype.concat = function (text) {
-        this.ring[this.index] = this.ring[this.index] + text;
-    };
+    function concat(text) {
+        ring[index] = ring[index] + text;
+    }
 
-    KillRing.prototype.peek = function () {
-        if (this.ring.length > 0) {
-            return this.ring[this.index];
-        } else {
-            return null;
-        }
-    };
-    
-    KillRing.prototype.rotate = function () {
-        if (this.index !== null) {
-            if (this.index > 0) {
-                --this.index;
-            } else {
-                this.index = this.ring.length - 1;
-            }
-        }
-    };
-
-    function _getKillRing(editor) {
-        if (editor) {
-            if (!(editor.killRing)) {
-                editor.killRing = new KillRing();
-            }
-            return editor.killRing;
+    function peek() {
+        if (ring.length > 0) {
+            return ring[index];
         } else {
             return null;
         }
     }
-
-    function _kill(editor) {
-        editor = editor || EditorManager.getFocusedEditor();
-        var killRing = _getKillRing(editor);
-        
-        if (killRing) {
-            
-            var doc = editor.document;
-            var text, startRange, endRange;
-            
-            if (editor.hasSelection()) {
-                var selection = editor.getSelection();
-                startRange = selection.start;
-                endRange = selection.end;
-            } else {
-                var cursor = editor.getCursorPos(false);
-                var line = doc.getLine(cursor.line);
-                
-                startRange = {line : cursor.line, ch: cursor.ch};
-                
-                // if line is empty, kill the next linebreak instead
-                if (line === "") {
-                    endRange = {line : cursor.line + 1, ch : 0};
-                } else {
-                    endRange = {line : cursor.line, ch : line.length};
-                }
-            }
-            
-            text = doc.getRange(startRange, endRange);
-                        
-            if (text !== null && text.length > 0) {
-                // if the cursor hasn't moved between kills, concatenate kills
-                if (killRing.last_kill_begin !== null &&
-                        killRing.last_kill_begin.line === startRange.line &&
-                        killRing.last_kill_begin.ch === startRange.ch) {
-                    killRing.concat(text);
-                } else {
-                    killRing.push(text);
-                }
-                
-                doc.replaceRange("", startRange, endRange);
-            }
-            
-            // last command was a kill, so set last kill position 
-            killRing.last_kill_begin = startRange;
-            
-            // last command was not a yank, so reset yank position
-            killRing.last_yank_begin = null;
-            killRing.last_yank_end = null;
-        }
-    }
-
-    function _yank(editor, again) {
-        editor = editor || EditorManager.getFocusedEditor();
-        var killRing = _getKillRing(editor);
-        
-        if (killRing) {
-            var text = killRing.peek();
-            
-            if (text !== null) {
-                var cursor = editor.getCursorPos(false);
-                var doc = editor.document;
-                
-                // if we're yanking again, replace the last yanked text
-                if (again) {
-                    doc.replaceRange(text, killRing.last_yank_begin, killRing.last_yank_end);
-                } else { // otherwise yank at cursor
-                    killRing.last_yank_begin = { line: cursor.line, ch: cursor.ch};
-                    doc.replaceRange(text, cursor);
-                }
-                
-                // last command was not a kill, so reset last kill position
-                killRing.last_kill_begin = null;
-                
-                // update last yank position
-                cursor = editor.getCursorPos(false);
-                killRing.last_yank_end = { line: cursor.line, ch: cursor.ch};
-            }
-        }
-        
-    }
     
-    function _yank_pop(editor) {
+    function rotate() {
+        if (index !== null) {
+            if (index > 0) {
+                index--;
+            } else {
+                index = ring.length - 1;
+            }
+        }
+    }
+
+
+    function kill(editor) {
         editor = editor || EditorManager.getFocusedEditor();
-        var killRing = _getKillRing(editor);
+                    
+        var doc = editor.document;
+        var text, startRange, endRange;
         
-        if (killRing) {
+        if (editor.hasSelection()) {
+            var selection = editor.getSelection();
+            startRange = selection.start;
+            endRange = selection.end;
+        } else {
             var cursor = editor.getCursorPos(false);
+            var line = doc.getLine(cursor.line);
             
-            if (cursor.line === killRing.last_yank_end.line &&
-                    cursor.ch === killRing.last_yank_end.ch) {
-                killRing.rotate();
-                _yank(editor, true);
+            startRange = {line : cursor.line, ch: cursor.ch};
+            
+            // if line is empty, kill the next linebreak instead
+            if (line === "") {
+                endRange = {line : cursor.line + 1, ch : 0};
+            } else {
+                endRange = {line : cursor.line, ch : line.length};
             }
+        }
+        
+        text = doc.getRange(startRange, endRange);
+                    
+        if (text !== null && text.length > 0) {
+            // if the cursor hasn't moved between kills, concatenate kills
+            if (last_kill_begin !== null &&
+                    last_kill_begin.line === startRange.line &&
+                    last_kill_begin.ch === startRange.ch) {
+                concat(text);
+            } else {
+                push(text);
+            }
+            
+            doc.replaceRange("", startRange, endRange);
+        }
+        
+        // last command was a kill, so set last kill position 
+        last_kill_begin = startRange;
+        
+        // last command was not a yank, so reset yank position
+        last_yank_begin = null;
+        last_yank_end = null;
+    }
+
+    function yank(editor, again) {
+        editor = editor || EditorManager.getFocusedEditor();
+        
+        var text = peek();
+        
+        if (text !== null) {
+            var cursor = editor.getCursorPos(false);
+            var doc = editor.document;
+            
+            // if we're yanking again, replace the last yanked text
+            if (again) {
+                doc.replaceRange(text, last_yank_begin, last_yank_end);
+            } else { // otherwise yank at cursor
+                last_yank_begin = { line: cursor.line, ch: cursor.ch};
+                doc.replaceRange(text, cursor);
+            }
+            
+            // last command was not a kill, so reset last kill position
+            last_kill_begin = null;
+            
+            // update last yank position
+            cursor = editor.getCursorPos(false);
+            last_yank_end = { line: cursor.line, ch: cursor.ch};
+        }
+        
+    }
+    
+    function yank_pop(editor) {
+        editor = editor || EditorManager.getFocusedEditor();
+        
+        var cursor = editor.getCursorPos(false);
+        
+        if (cursor.line === last_yank_end.line &&
+                cursor.ch === last_yank_end.ch) {
+            rotate();
+            yank(editor, true);
         }
     }
 
@@ -191,9 +169,9 @@ define(function (require, exports, module) {
         var CMD_YANK = "Yank";
         var CMD_YANK_AGAIN = "Yank Again";
 
-        CommandManager.register(CMD_KILL, EDIT_KILL, _kill);
-        CommandManager.register(CMD_YANK, EDIT_YANK, _yank);
-        CommandManager.register(CMD_YANK_AGAIN, EDIT_YANK_AGAIN, _yank_pop);
+        CommandManager.register(CMD_KILL, EDIT_KILL, kill);
+        CommandManager.register(CMD_YANK, EDIT_YANK, yank);
+        CommandManager.register(CMD_YANK_AGAIN, EDIT_YANK_AGAIN, yank_pop);
         
         function controlKey(char) {
             return [{key: "Ctrl-" + char, platform: "win"},
