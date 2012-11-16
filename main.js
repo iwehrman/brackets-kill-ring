@@ -106,9 +106,9 @@ define(function (require, exports, module) {
                 
                 // if line is empty, kill the next linebreak instead
                 if (line === "") {
-                    endRange = {line : cursor.line + 1, ch : 0}; 
+                    endRange = {line : cursor.line + 1, ch : 0};
                 } else {
-                    endRange = {line : cursor.line, ch : line.length};    
+                    endRange = {line : cursor.line, ch : line.length};
                 }
             }
             
