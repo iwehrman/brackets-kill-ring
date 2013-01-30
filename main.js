@@ -75,6 +75,10 @@ define(function (require, exports, module) {
 
     function kill(editor) {
         editor = editor || EditorManager.getFocusedEditor();
+        
+        if (!editor) {
+            return;
+        }
                     
         var doc = editor.document;
         var text, startRange, endRange;
@@ -123,6 +127,10 @@ define(function (require, exports, module) {
     function yank(editor, again) {
         editor = editor || EditorManager.getFocusedEditor();
         
+        if (!editor) {
+            return;
+        }
+        
         var text = peek();
         
         if (text !== null) {
@@ -150,6 +158,10 @@ define(function (require, exports, module) {
     function yank_pop(editor) {
         editor = editor || EditorManager.getFocusedEditor();
         
+        if (!editor) {
+            return;
+        }
+
         var cursor = editor.getCursorPos(false);
         
         if (cursor.line === last_yank_end.line &&
