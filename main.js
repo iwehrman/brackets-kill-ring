@@ -164,7 +164,7 @@ define(function (require, exports, module) {
 
         var cursor = editor.getCursorPos(false);
         
-        if (cursor.line === last_yank_end.line &&
+        if (last_yank_end !== null && cursor.line === last_yank_end.line &&
                 cursor.ch === last_yank_end.ch) {
             rotate();
             yank(editor, true);
