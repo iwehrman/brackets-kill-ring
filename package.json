@@ -1,0 +1,11 @@
+{
+    "name": "brackets-kill-ring",
+    "description": "Emacs-style kill ring extension for Brackets",
+    "version": "0.1.0",
+    "homepage": "https://github.com/iwehrman/brackets-kill-ring/",
+    "bugs": "https://github.com/iwehrman/brackets-kill-ring/issues",
+    "repository" : { 
+        "type" : "git",
+         "url" : "https://github.com/iwehrman/brackets-kill-ring.git"
+    }
+}
