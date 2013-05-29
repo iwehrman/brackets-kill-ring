@@ -23,7 +23,7 @@
 
 
 /*jslint vars: true, plusplus: true, devel: true, nomen: true, indent: 4, maxerr: 50 */
-/*global define, brackets */
+/*global define, brackets, $ */
 
 define(function (require, exports, module) {
     "use strict";
@@ -33,13 +33,25 @@ define(function (require, exports, module) {
         Menus                   = brackets.getModule("command/Menus"),
         AppInit                 = brackets.getModule("utils/AppInit");
 
+    var EDIT_MARK = "edit.mark";
+    var EDIT_KILL = "edit.kill";
+    var EDIT_YANK = "edit.yank";
+    var EDIT_YANK_AGAIN = "edit.yankAgain";
+
+    var CMD_SET_MARK = "Set Mark";
+    var CMD_CLEAR_MARK = "Clear Mark";
+    var CMD_KILL = "Kill";
+    var CMD_YANK = "Yank";
+    var CMD_YANK_AGAIN = "Yank Again";
+
     var MAX_BUFFER_LENGTH = 100;
     
     var ring = [],
         index = null,
         last_kill_begin = null,
         last_yank_begin = null,
-        last_yank_end = null;
+        last_yank_end = null,
+        mark = null;
 
     function push(text) {
         if (ring.length > MAX_BUFFER_LENGTH) {
@@ -71,7 +83,37 @@ define(function (require, exports, module) {
             }
         }
     }
-
+    
+    function _clearMark(editor) {
+        var cm = editor._codeMirror;
+        
+        mark = null;
+        cm.setExtending(false);
+        cm.setSelection(editor.getCursorPos());
+        CommandManager.get(EDIT_MARK).setName(CMD_SET_MARK);
+    }
+    
+    function _setMark(editor) {
+        var cm = editor._codeMirror;
+        
+        mark = editor.getCursorPos();
+        cm.setExtending(true);
+        CommandManager.get(EDIT_MARK).setName(CMD_CLEAR_MARK);
+    }
+    
+    function toggleMark(editor) {
+        editor = editor || EditorManager.getFocusedEditor();
+        
+        if (!editor) {
+            return;
+        }
+        
+        if (mark) {
+            _clearMark(editor);
+        } else {
+            _setMark(editor);
+        }
+    }
 
     function kill(editor) {
         editor = editor || EditorManager.getFocusedEditor();
@@ -87,6 +129,10 @@ define(function (require, exports, module) {
             var selection = editor.getSelection();
             startRange = selection.start;
             endRange = selection.end;
+            
+            if (mark) {
+                _clearMark(editor);
+            }
         } else {
             var cursor = editor.getCursorPos(false);
             var line = doc.getLine(cursor.line);
@@ -170,17 +216,35 @@ define(function (require, exports, module) {
             yank(editor, true);
         }
     }
+    
+    function installEditorListener(editor) {
+        $(editor).on("keyEvent.brackets-kill-ring", function (jqEvent, eventEditor, event) {
+            if (eventEditor === editor && event.type === "keyup" && event.keyCode === 27) {
+                _clearMark(editor);
+            }
+        });
+    }
+    
+    function uninstallEditorListener(editor) {
+        $(editor).off(".brackets-kill-ring");
+    }
+    
+    function handleEditorChange(event, newEditor, oldEditor) {
+        
+        if (oldEditor) {
+            _clearMark(oldEditor);
+            uninstallEditorListener(oldEditor);
+        }
+        
+        if (newEditor) {
+            installEditorListener(newEditor);
+            _clearMark(newEditor);
+        }
+    }
 
     // load everything when brackets is done loading
     AppInit.appReady(function () {
-        var EDIT_KILL = "edit.kill";
-        var EDIT_YANK = "edit.yank";
-        var EDIT_YANK_AGAIN = "edit.yankAgain";
-        
-        var CMD_KILL = "Kill";
-        var CMD_YANK = "Yank";
-        var CMD_YANK_AGAIN = "Yank Again";
-
+        CommandManager.register(CMD_SET_MARK, EDIT_MARK, toggleMark);
         CommandManager.register(CMD_KILL, EDIT_KILL, kill);
         CommandManager.register(CMD_YANK, EDIT_YANK, yank);
         CommandManager.register(CMD_YANK_AGAIN, EDIT_YANK_AGAIN, yank_pop);
@@ -197,9 +261,13 @@ define(function (require, exports, module) {
         
         var menu = Menus.getMenu(Menus.AppMenuBar.EDIT_MENU);
         menu.addMenuItem(Menus.DIVIDER);
+        menu.addMenuItem(EDIT_MARK, controlKey('M'));
         menu.addMenuItem(EDIT_KILL, controlKey('K'));
         menu.addMenuItem(EDIT_YANK, controlKey('Y'));
         menu.addMenuItem(EDIT_YANK_AGAIN, metaKey('Y'));
+    
+        $(EditorManager).on("activeEditorChange", handleEditorChange);
+        installEditorListener(EditorManager.getFocusedEditor());
     });
 
 });
