@@ -1,6 +1,7 @@
 {
     "name": "brackets-kill-ring",
     "description": "Emacs-style kill ring extension for Brackets",
+    "author" : "Ian Wehrman <ian@wehrman.org>",
     "version": "0.2.0",
     "homepage": "https://github.com/iwehrman/brackets-kill-ring/",
     "bugs": "https://github.com/iwehrman/brackets-kill-ring/issues",
